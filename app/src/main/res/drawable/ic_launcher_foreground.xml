@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Простая пиктограмма наушников со звуковой волной -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Дуга оголовья -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#8AB4F8"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:pathData="M30,62 A24,24 0 0,1 78,62" />
+
+    <!-- Левая чашка -->
+    <path
+        android:fillColor="#8AB4F8"
+        android:pathData="M28,60 h8 a4,4 0 0,1 4,4 v12 a4,4 0 0,1 -4,4 h-8 a4,4 0 0,1 -4,-4 v-12 a4,4 0 0,1 4,-4 z" />
+
+    <!-- Правая чашка -->
+    <path
+        android:fillColor="#8AB4F8"
+        android:pathData="M72,60 h8 a4,4 0 0,1 4,4 v12 a4,4 0 0,1 -4,4 h-8 a4,4 0 0,1 -4,-4 v-12 a4,4 0 0,1 4,-4 z" />
+
+    <!-- Волна ANC (зачёркнутый шум) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#F28B82"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M40,38 q4,-6 8,0 t8,0 t8,0" />
+
+</vector>

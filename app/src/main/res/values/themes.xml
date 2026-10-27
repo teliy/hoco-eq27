@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Стартовая тема до отрисовки Compose. Весь UI рисует Jetpack Compose. -->
+    <style name="Theme.EQ27ANC" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#101418</item>
+        <item name="android:statusBarColor">#101418</item>
+        <item name="android:navigationBarColor">#101418</item>
+    </style>
+</resources>

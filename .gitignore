@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Android Studio / SDK
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# ОС
+.DS_Store
+Thumbs.db
+
+# ВАЖНО: keystore/eq27-release.jks НЕ исключён из git — он сознательно
+# хранится в репозитории, чтобы локальные сборки и GitHub Actions
+# подписывали APK одним и тем же ключом (условие обновления через приложение).
+# См. комментарий в app/build.gradle.kts.

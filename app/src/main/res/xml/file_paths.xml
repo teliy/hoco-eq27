@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Пути для FileProvider: отдаём скачанный APK обновления
+  системному установщику, не выдавая доступ ко всему кэшу.
+-->
+<paths>
+    <cache-path
+        name="update_apk"
+        path="updates/" />
+</paths>
