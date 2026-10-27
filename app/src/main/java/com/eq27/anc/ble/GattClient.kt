@@ -474,7 +474,7 @@ class GattClient(
             refreshGattCache(g)   // сбрасываем устаревший GATT-кэш — частое лекарство от 133
             runCatching { g.close() }
             scope.launch {
-                delay(delayMs)
+                delay(delayMs.toLong())
                 if (state.value is ConnState.Connecting) doConnect(dev)
             }
         } else {
