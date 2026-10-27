@@ -34,6 +34,7 @@ import com.eq27.anc.MainViewModel
 import com.eq27.anc.ble.ConnState
 import com.eq27.anc.ble.GattClient
 import com.eq27.anc.ble.RxPacket
+import com.eq27.anc.protocol.hex
 
 /**
  * Вкладка управления шумоподавлением.

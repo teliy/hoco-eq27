@@ -172,7 +172,7 @@ private fun DeviceRow(item: ScanItem, onClick: () -> Unit) {
 }
 
 @Composable
-private fun HintLine(text: String) {
+fun HintLine(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.bodySmall,
