@@ -20,9 +20,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -31,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.eq27.anc.MainViewModel
 import com.eq27.anc.ble.ConnState
 import com.eq27.anc.ble.ScanItem
+import kotlinx.coroutines.delay
 
 /**
  * Вкладка поиска и подключения к наушникам.
@@ -41,13 +44,25 @@ fun ConnectTab(vm: MainViewModel) {
     val items by vm.scanItems.collectAsState()
     val scanError by vm.scanError.collectAsState()
     val conn by vm.conn.collectAsState()
+    val rawSeen by vm.rawSeen.collectAsState()
 
     var nameFilter by rememberSaveable { mutableStateOf("EQ27") }
     var showAll by rememberSaveable { mutableStateOf(false) }
     var addressText by rememberSaveable { mutableStateOf("") }
     var addressError by rememberSaveable { mutableStateOf<String?>(null) }
+    var showEmptyEtherDiag by remember { mutableStateOf(false) }
 
     val connected = conn is ConnState.Connected
+
+    // Диагностика пустого эфира: если скан идёт 12 с и стек не вернул НИ ОДНОГО
+    // BLE-устройства — дело не в наушниках, а в стеке Bluetooth телефона.
+    LaunchedEffect(scanning) {
+        showEmptyEtherDiag = false
+        if (scanning) {
+            delay(12_000)
+            if (rawSeen == 0) showEmptyEtherDiag = true
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -92,6 +107,25 @@ fun ConnectTab(vm: MainViewModel) {
                         err,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (scanning) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Сканирование… BLE-устройств в эфире (без фильтра): $rawSeen",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                if (showEmptyEtherDiag && scanning) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Эфир пустой: Bluetooth-менеджер отвечает, но не возвращает ни одного " +
+                                "устройства — это сбой стека, а не проблема наушников. Помогает: " +
+                                "выключить/включить Bluetooth (или на 10 с авиарежим), на части " +
+                                "прошивок — включить Геолокацию, в крайнем случае перезагрузить телефон.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
             }

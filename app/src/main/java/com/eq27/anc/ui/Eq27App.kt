@@ -105,7 +105,8 @@ fun ConnectionBanner(
             Text(
                 text,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
+                // Текст подсказки при ошибке должен быть виден целиком — не обрезаем
+                maxLines = if (conn is ConnState.Failed) 10 else 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )

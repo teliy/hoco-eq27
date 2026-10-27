@@ -82,6 +82,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _scanItems = MutableStateFlow<List<ScanItem>>(emptyList())
     val scanItems: StateFlow<List<ScanItem>> = _scanItems
 
+    /** Сколько ВСЕГО BLE-устройств увидел скан (без фильтра по имени) — для диагностики. */
+    private val _rawSeen = MutableStateFlow(0)
+    val rawSeen: StateFlow<Int> = _rawSeen
+
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning
 
@@ -95,6 +99,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun startScan(nameFilter: String, showAll: Boolean) {
         if (_scanning.value) return
         _scanItems.value = emptyList()
+        _rawSeen.value = 0
         _scanError.value = null
         _scanning.value = true
         val filterNote = if (!showAll && nameFilter.isNotBlank()) " (фильтр имени: «$nameFilter»)" else ""
@@ -103,6 +108,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             scanner.scan().collect { event ->
                 when (event) {
                     is ScanEvent.Found -> {
+                        _rawSeen.value += 1
                         val item = event.item
                         val matches = showAll || nameFilter.isBlank() ||
                                 item.name.contains(nameFilter.trim(), ignoreCase = true)

@@ -13,6 +13,7 @@ import com.eq27.anc.protocol.hex
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -64,6 +65,7 @@ class GattClient(
     private var lastDevice: BluetoothDevice? = null
     private val connectAttempts = AtomicInteger(0)
     @Volatile private var userDisconnect = false
+    private var connectWatchdog: Job? = null
 
     // Ожидающие продолжения текущей операции (операции строго по одной)
     private var pendingDiscover: CompletableDeferred<Boolean>? = null
@@ -84,6 +86,7 @@ class GattClient(
             return
         }
         lastDevice = device
+        connectWatchdog?.cancel()
         connectAttempts.set(1)
         userDisconnect = false
         state.value = ConnState.Connecting(deviceName(device), device.address, 1)
@@ -94,18 +97,45 @@ class GattClient(
     private fun doConnect(device: BluetoothDevice) {
         runCatching { gatt?.close() }
         val attempt = connectAttempts.get()
-        log("I", "Подключение к ${deviceName(device)} (попытка $attempt)…")
-        val g = device.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+        // Последняя попытка — фоновым autoConnect: стек сам дождётся окна,
+        // когда наушники станут подключаемыми (часто единственный способ
+        // пробиться сквозь status 133 у Jieli).
+        val background = attempt >= MAX_ATTEMPTS
+        log(
+            "I",
+            "Подключение к ${deviceName(device)} (попытка $attempt)…" +
+                    if (background) " [фоновый режим — может занять до минуты]" else "",
+        )
+        val g = device.connectGatt(context, background, callback, BluetoothDevice.TRANSPORT_LE)
         gatt = g
         if (g == null) {
             log("E", "connectGatt() вернул null — перезапустите Bluetooth и повторите")
             state.value = ConnState.Failed("connectGatt() вернул null. Перезапустите Bluetooth.")
+            return
+        }
+        if (background) {
+            // autoConnect не обязуется вернуть колбэк быстро — ставим сторожевой таймер
+            connectWatchdog?.cancel()
+            connectWatchdog = scope.launch {
+                delay(BACKGROUND_CONNECT_TIMEOUT_MS)
+                if (state.value is ConnState.Connecting) {
+                    log("E", "Фоновое подключение не дало результата за 60 с")
+                    runCatching { gatt?.close() }
+                    gatt = null
+                    state.value = ConnState.Failed(
+                        "Наушники не принимают GATT-связь (status 133 во всех попытках). " +
+                                "Почти всегда это занятый канал: полностью остановите hoco.music " +
+                                "(Настройки → Приложения → hoco.music → Остановить), затем «Повторить».",
+                    )
+                }
+            }
         }
     }
 
     @SuppressLint("MissingPermission")
     fun disconnect() {
         userDisconnect = true
+        connectWatchdog?.cancel()
         runCatching { gatt?.disconnect() }
         runCatching { gatt?.close() }
         gatt = null
@@ -276,6 +306,7 @@ class GattClient(
         override fun onConnectionStateChange(g: BluetoothGatt, status: Int, newState: Int) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
+                    connectWatchdog?.cancel()
                     if (status != BluetoothGatt.GATT_SUCCESS) {
                         log("W", "Канал открыт, но status=$status")
                     }
@@ -438,20 +469,36 @@ class GattClient(
         if (!userDisconnect && autoReconnect && attempt < MAX_ATTEMPTS) {
             connectAttempts.incrementAndGet()
             val dev = g.device
-            log("W", "Попытка $attempt не удалась — повтор через 400 мс")
+            val delayMs = RETRY_DELAYS_MS.getOrElse(attempt - 1) { 5000 }
+            log("W", "Попытка $attempt не удалась — повтор через $delayMs мс")
+            refreshGattCache(g)   // сбрасываем устаревший GATT-кэш — частое лекарство от 133
             runCatching { g.close() }
             scope.launch {
-                delay(400)
+                delay(delayMs)
                 if (state.value is ConnState.Connecting) doConnect(dev)
             }
         } else {
+            refreshGattCache(g)
             runCatching { g.close() }
             gatt = null
             state.value = ConnState.Failed(
-                "Подключение не удалось после $attempt попыток. " +
-                        "Подсказки: уберите наушники из кейса, закройте hoco.music, " +
-                        "включите/выключите Bluetooth. Подробности — в README (Траблшутинг).",
+                "Наушники не принимают GATT-связь (status 133 после $attempt попыток). " +
+                        "1) Полностью остановите hoco.music: Настройки → Приложения → hoco.music → Остановить — " +
+                        "затем жмите «Повторить». 2) Выключите/включите Bluetooth. " +
+                        "3) Перезагрузите телефон.",
             )
+        }
+    }
+
+    /**
+     * Сброс служебного кэша GATT через скрытый метод refresh() —
+     * известное лекарство от status 133 после разрыва соединения.
+     */
+    @SuppressLint("DiscouragedPrivateApi")
+    private fun refreshGattCache(g: BluetoothGatt?) {
+        if (g == null) return
+        runCatching {
+            g.javaClass.getMethod("refresh").invoke(g)
         }
     }
 
@@ -482,8 +529,12 @@ class GattClient(
         runCatching { d.name }.getOrNull()?.takeUnless { it.isBlank() } ?: d.address
 
     companion object {
-        private const val MAX_ATTEMPTS = 4
+        private const val MAX_ATTEMPTS = 5
         private const val OP_TIMEOUT_MS = 3500L
+        private const val BACKGROUND_CONNECT_TIMEOUT_MS = 60_000L
+
+        /** Пауза между попытками (нарастающая): после 1-й, 2-й, 3-й, 4-й. */
+        private val RETRY_DELAYS_MS = intArrayOf(600, 1500, 3000, 5000)
 
         /** Дескриптор Client Characteristic Configuration. */
         val UUID_CCCD: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
