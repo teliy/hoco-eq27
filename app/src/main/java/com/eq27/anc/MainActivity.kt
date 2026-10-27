@@ -1,8 +1,11 @@
 package com.eq27.anc
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -15,8 +18,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,8 +29,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eq27.anc.ui.Eq27App
 import com.eq27.anc.ui.theme.Eq27Theme
@@ -45,6 +54,17 @@ class MainActivity : ComponentActivity() {
                     granted = result.values.all { it }
                 }
 
+                // Если пользователь выдал разрешения в настройках системы и вернулся —
+                // подхватываем это без перезапуска приложения.
+                val lifecycleOwner = LocalLifecycleOwner.current
+                DisposableEffect(lifecycleOwner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_RESUME) granted = hasPermissions()
+                    }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                }
+
                 LaunchedEffect(Unit) {
                     if (!granted) launcher.launch(PERMISSIONS)
                 }
@@ -52,7 +72,9 @@ class MainActivity : ComponentActivity() {
                 if (granted) {
                     Eq27App(vm)
                 } else {
-                    PermissionRationale(onRetry = { launcher.launch(PERMISSIONS) })
+                    PermissionRationale(
+                        onRetry = { launcher.launch(PERMISSIONS) },
+                    )
                 }
             }
         }
@@ -73,6 +95,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun PermissionRationale(onRetry: () -> Unit) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -93,5 +116,16 @@ private fun PermissionRationale(onRetry: () -> Unit) {
         )
         Spacer(Modifier.height(20.dp))
         Button(onClick = onRetry) { Text("Выдать разрешения") }
+        Spacer(Modifier.height(8.dp))
+        // Если диалог уже был отклонён с «Больше не спрашивать», повторный запуск
+        // ничего не даст — остаётся только системный экран разрешений.
+        OutlinedButton(onClick = {
+            context.startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", context.packageName, null),
+                ),
+            )
+        }) { Text("Открыть настройки приложения") }
     }
 }

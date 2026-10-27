@@ -58,6 +58,21 @@ class CommandStore(context: Context) {
         get() = prefs.getBoolean(KEY_AUTO_RECONNECT, true)
         set(v) = prefs.edit().putBoolean(KEY_AUTO_RECONNECT, v).apply()
 
+    // --- Вкладка «Подключение»: настройки поиска ---
+
+    /**
+     * «Показывать все BLE» — живёт в настройках, чтобы тумблер не сбрасывался
+     * при переходе между вкладками и после перезапуска приложения.
+     */
+    var showAllBle: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_ALL_BLE, false)
+        set(v) = prefs.edit().putBoolean(KEY_SHOW_ALL_BLE, v).apply()
+
+    /** Последний фильтр имени — тоже сохраняем. */
+    var nameFilter: String
+        get() = prefs.getString(KEY_NAME_FILTER, DEFAULT_NAME_FILTER) ?: DEFAULT_NAME_FILTER
+        set(v) = prefs.edit().putString(KEY_NAME_FILTER, v).apply()
+
     // --- Мои команды ---
 
     fun customCommands(): List<CustomCommand> {
@@ -87,6 +102,7 @@ class CommandStore(context: Context) {
 
     private companion object {
         const val PREFS_NAME = "eq27_anc"
+        const val DEFAULT_NAME_FILTER = "EQ27"
         const val KEY_ANC_ON = "frame_anc_on"
         const val KEY_ANC_OFF = "frame_anc_off"
         const val KEY_TRANSPARENCY = "frame_transparency"
@@ -95,6 +111,8 @@ class CommandStore(context: Context) {
         const val KEY_CHUNK_SIZE = "chunk_size"
         const val KEY_WRITE_NO_RESPONSE = "write_no_response"
         const val KEY_AUTO_RECONNECT = "auto_reconnect"
+        const val KEY_SHOW_ALL_BLE = "show_all_ble"
+        const val KEY_NAME_FILTER = "name_filter"
         const val KEY_CUSTOM = "custom_commands"
     }
 }

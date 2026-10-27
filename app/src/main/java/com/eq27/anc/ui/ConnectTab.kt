@@ -45,9 +45,9 @@ fun ConnectTab(vm: MainViewModel) {
     val scanError by vm.scanError.collectAsState()
     val conn by vm.conn.collectAsState()
     val rawSeen by vm.rawSeen.collectAsState()
+    val nameFilter by vm.nameFilter.collectAsState()
+    val showAll by vm.showAllBle.collectAsState()
 
-    var nameFilter by rememberSaveable { mutableStateOf("EQ27") }
-    var showAll by rememberSaveable { mutableStateOf(false) }
     var addressText by rememberSaveable { mutableStateOf("") }
     var addressError by rememberSaveable { mutableStateOf<String?>(null) }
     var showEmptyEtherDiag by remember { mutableStateOf(false) }
@@ -69,12 +69,16 @@ fun ConnectTab(vm: MainViewModel) {
         contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp),
     ) {
         item {
+            BtStatusCard()
+        }
+
+        item {
             SectionCard("Поиск наушников") {
                 OutlinedTextField(
                     value = nameFilter,
-                    onValueChange = { nameFilter = it },
+                    onValueChange = { vm.setNameFilter(it) },
                     label = { Text("Фильтр имени") },
-                    supportingText = { Text("Подстрока имени в advertising, например EQ27") },
+                    supportingText = { Text("Действует сразу, даже во время сканирования") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !connected,
@@ -87,7 +91,7 @@ fun ConnectTab(vm: MainViewModel) {
                 ) {
                     FilterChip(
                         selected = showAll,
-                        onClick = { showAll = !showAll },
+                        onClick = { vm.setShowAllBle(!showAll) },
                         label = { Text("Показывать все BLE") },
                         enabled = !connected,
                     )
@@ -96,11 +100,16 @@ fun ConnectTab(vm: MainViewModel) {
                         OutlinedButton(onClick = { vm.stopScan() }) { Text("Остановить") }
                     } else {
                         Button(
-                            onClick = { vm.startScan(nameFilter, showAll) },
+                            onClick = { vm.startScan() },
                             enabled = !connected,
                         ) { Text("Начать поиск") }
                     }
                 }
+                Text(
+                    "Положение тумблера и фильтр сохраняются — не собьются при смене вкладки.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 scanError?.let { err ->
                     Spacer(Modifier.height(8.dp))
                     Text(

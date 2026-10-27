@@ -1,6 +1,5 @@
 package com.eq27.anc.ui
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,7 +26,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.eq27.anc.MainViewModel
@@ -55,7 +53,6 @@ fun LabTab(vm: MainViewModel) {
     val custom by vm.customCommands.collectAsState()
     val logEntries by vm.log.collectAsState()
 
-    val context = LocalContext.current
     val connected = conn is ConnState.Connected
 
     var hexInput by rememberSaveable { mutableStateOf("") }
@@ -276,16 +273,6 @@ fun LabTab(vm: MainViewModel) {
             SectionCard("Журнал") {
                 LogPanel(
                     entries = logEntries,
-                    onShare = {
-                        val text = logEntries.joinToString("\n") {
-                            "${it.time} [${it.level}] ${it.message}"
-                        }
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, text)
-                        }
-                        context.startActivity(Intent.createChooser(send, "Журнал EQ27 ANC"))
-                    },
                     onClear = { vm.clearLog() },
                 )
             }

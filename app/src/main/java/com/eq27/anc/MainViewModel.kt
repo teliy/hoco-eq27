@@ -96,13 +96,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun bluetoothReady(): Boolean = scanner.bluetoothReady()
 
-    fun startScan(nameFilter: String, showAll: Boolean) {
+    /**
+     * Запуск скана. Фильтр имени и «Показывать все BLE» читаются из StateFlow,
+     * поэтому тумблер и фильтр действуют сразу, даже во время сканирования.
+     */
+    fun startScan() {
         if (_scanning.value) return
         _scanItems.value = emptyList()
         _rawSeen.value = 0
         _scanError.value = null
         _scanning.value = true
-        val filterNote = if (!showAll && nameFilter.isNotBlank()) " (фильтр имени: «$nameFilter»)" else ""
+        val filter = nameFilter.value.trim()
+        val filterNote = if (!showAllBle.value && filter.isNotBlank()) " (фильтр имени: «$filter»)" else ""
         addLog("I", "Сканирование запущено$filterNote")
         scanJob = viewModelScope.launch {
             scanner.scan().collect { event ->
@@ -110,8 +115,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     is ScanEvent.Found -> {
                         _rawSeen.value += 1
                         val item = event.item
-                        val matches = showAll || nameFilter.isBlank() ||
-                                item.name.contains(nameFilter.trim(), ignoreCase = true)
+                        val showAll = showAllBle.value
+                        val nameFilterNow = nameFilter.value.trim()
+                        val matches = showAll || nameFilterNow.isBlank() ||
+                                item.name.contains(nameFilterNow, ignoreCase = true)
                         if (!matches) return@collect
                         val current = _scanItems.value.toMutableList()
                         val idx = current.indexOfFirst { it.address == item.address }
@@ -130,7 +137,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun stopScan() {
-        if (_scanning.value) addLog("I", "Сканирование остановлено")
+        if (_scanning.value) {
+            addLog(
+                "I",
+                "Сканирование остановлено: в списке ${_scanItems.value.size}, " +
+                        "в эфире всего ${_rawSeen.value}",
+            )
+        }
         stopScanInternal()
     }
 
@@ -145,6 +158,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private var lastDevice: android.bluetooth.BluetoothDevice? = null
 
     fun connect(item: ScanItem) {
+        if (_scanning.value) {
+            addLog("I", "Подключение к ${item.name.ifBlank { item.address }} — скан остановлен")
+        }
         stopScanInternal()
         lastDevice = item.device
         client.autoReconnect = autoReconnect.value
@@ -194,6 +210,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         client.chunkSizePref = chunkSize.value
         client.connect(device)
         return null
+    }
+
+    // ------------------------------------------------------------------ настройки поиска
+
+    /** «Показывать все BLE» — хранится в настройках, не сбрасывается между вкладками. */
+    val showAllBle = MutableStateFlow(store.showAllBle)
+
+    /** Фильтр имени — тоже сохраняется между сессиями. */
+    val nameFilter = MutableStateFlow(store.nameFilter)
+
+    fun setShowAllBle(on: Boolean) {
+        showAllBle.value = on
+        store.showAllBle = on
+    }
+
+    fun setNameFilter(text: String) {
+        nameFilter.value = text
+        store.nameFilter = text
     }
 
     // ------------------------------------------------------------------ настройки
