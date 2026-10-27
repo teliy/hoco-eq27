@@ -154,6 +154,42 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun disconnect() = client.disconnect()
 
+    // ------------------------------------------------------------------ подключение по адресу
+
+    /**
+     * Приводит введённый адрес к виду XX:XX:XX:XX:XX:XX.
+     * Понимает форматы с ":", "-" и без разделителей.
+     * @return нормализованный адрес или null, если формат неверный
+     */
+    fun normalizeMac(raw: String): String? {
+        val cleaned = raw.trim()
+            .replace("-", ":")
+            .replace(" ", "")
+            .replace(":", "")
+        if (cleaned.length != 12 || cleaned.any { it !in "0123456789ABCDEFabcdef" }) return null
+        return cleaned.uppercase().chunked(2).joinToString(":")
+    }
+
+    /**
+     * Прямое подключение по MAC-адресу, без сканирования. Выручает, когда
+     * наушники молчат в advertising: заняты hoco.music, уже подключены по
+     * классике или спят. Адрес берётся из настроек Bluetooth телефона.
+     * @return null — подключение запущено; строка — текст ошибки для UI
+     */
+    fun connectByAddress(addressRaw: String): String? {
+        val normalized = normalizeMac(addressRaw)
+            ?: return "Неверный формат адреса. Пример: 72:08:03:03:5A:6D"
+        val device = scanner.remoteDevice(normalized)
+            ?: return "Bluetooth выключен или недоступен"
+        stopScanInternal()
+        addLog("I", "Прямое подключение по адресу $normalized (без сканирования)")
+        lastDevice = device
+        client.autoReconnect = autoReconnect.value
+        client.chunkSizePref = chunkSize.value
+        client.connect(device)
+        return null
+    }
+
     // ------------------------------------------------------------------ настройки
 
     val autoReconnect = MutableStateFlow(store.autoReconnect)

@@ -44,6 +44,8 @@ fun ConnectTab(vm: MainViewModel) {
 
     var nameFilter by rememberSaveable { mutableStateOf("EQ27") }
     var showAll by rememberSaveable { mutableStateOf(false) }
+    var addressText by rememberSaveable { mutableStateOf("") }
+    var addressError by rememberSaveable { mutableStateOf<String?>(null) }
 
     val connected = conn is ConnState.Connected
 
@@ -86,6 +88,51 @@ fun ConnectTab(vm: MainViewModel) {
                 }
                 scanError?.let { err ->
                     Spacer(Modifier.height(8.dp))
+                    Text(
+                        err,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        }
+
+        item {
+            SectionCard("Подключиться по адресу (если скан молчит)") {
+                Text(
+                    "Наушники могут не вещать в advertising: их занял hoco.music в фоне, " +
+                            "они уже подключены по классике (музыка/звонки) или «спят». " +
+                            "Тогда прямое подключение по адресу срабатывает даже без сканирования.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = addressText,
+                    onValueChange = {
+                        addressText = it
+                        addressError = null
+                    },
+                    label = { Text("MAC-адрес наушников") },
+                    placeholder = { Text("72:08:03:03:5A:6D") },
+                    supportingText = { Text("Настройки → Bluetooth → HOCO EQ27 → «Подробнее»") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !connected,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Button(
+                        onClick = { addressError = vm.connectByAddress(addressText) },
+                        enabled = !connected && addressText.isNotBlank(),
+                    ) { Text("Подключиться напрямую") }
+                }
+                addressError?.let { err ->
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         err,
                         color = MaterialTheme.colorScheme.error,

@@ -30,6 +30,18 @@ class ScannerSource(private val context: Context) {
         return a.isEnabled
     }
 
+    /**
+     * Устройство по адресу — для прямого подключения без сканирования.
+     * Наушники, занятые другим приложением (или молчащие в advertising),
+     * часто всё же принимают прямое GATT-подключение по своему адресу.
+     * @return null, если Bluetooth недоступен; сам адрес должен быть валиден
+     */
+    fun remoteDevice(address: String): android.bluetooth.BluetoothDevice? {
+        val a = adapter ?: return null
+        if (!a.isEnabled) return null
+        return runCatching { a.getRemoteDevice(address) }.getOrNull()
+    }
+
     /** Поток результатов сканирования; завершается после stopScan (закрытие коллектора). */
     fun scan(): Flow<ScanEvent> = callbackFlow {
         val a = adapter

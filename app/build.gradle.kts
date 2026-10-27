@@ -25,8 +25,8 @@ android {
         applicationId = "com.eq27.anc"
         minSdk = 31          // Android 12
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"   // семантическая версия: сравнивается с тегом релиза (v1.0.0)
+        versionCode = 2
+        versionName = "1.1.0"   // семантическая версия: сравнивается с тегом релиза (v1.1.0)
     }
 
     signingConfigs {
